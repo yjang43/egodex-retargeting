@@ -1,0 +1,3 @@
+[submodule "dex-urdf"]
+	path = dex-urdf
+	url = https://github.com/dexsuite/dex-urdf.git

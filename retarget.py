@@ -21,33 +21,39 @@ import pytransform3d.transformations as pt
 import numpy as np
 
 # Transformation Matrices #
-# wrist: avp -> mano -> opt -> xarm
-# finger_joints: avp -> mano -> opt
-# camera: cam -> sapcam
+# wrist: cam - world - avp - mano - opt - xarm
+# fingers: avp - mano - opt
+# camera: cam - sapcam
 
-sapcam2cam = np.eye(4)
-sapcam2cam[:3, :3] = pr.matrix_from_euler(
+SAPCAM2CAM = np.eye(4)
+SAPCAM2CAM[:3, :3] = pr.matrix_from_euler(
     [np.pi/2, -np.pi/2, 0], 0, 1, 2, extrinsic=True)
-cam2sapcam = pt.invert_transform(sapcam2cam)
-# sapcam_pose = cam_pose @ sapcam2cam
-mano_right2avp_right = np.eye(4)
-avp_right2mano_right = np.eye(4)
-# pose = pose @ mano_right2avp_right
-mano_left2avp_left = np.eye(4)
-mano_left2avp_left[:3, :3] = pr.matrix_from_euler(
+CAM2SAPCAM = pt.invert_transform(SAPCAM2CAM)
+
+# MANO representation follows,
+# https://github.com/dexsuite/dex-retargeting/blob/3f56141bc8bd2760d5e452e382937269554ebb21/example/vector_retargeting/single_hand_detector.py#L130C9-L130C40
+# middle to wrist: x ; middle to index: z ; normal: y
+MANO_RIGHT2AVP_RIGHT = np.eye(4)
+AVP_RIGHT2MANO_RIGHT = np.eye(4)
+MANO_LEFT2AVP_LEFT = np.eye(4)
+MANO_LEFT2AVP_LEFT[:3, :3] = pr.matrix_from_euler(
     [np.pi, 0, 0], 0, 1, 2, extrinsic=True)
-avp_left2mano_left = pt.invert_transform(mano_left2avp_left)
-# pose = pose @ mano_left2avp_left
-opt2mano_right = np.eye(4)
-opt2mano_right[:3, :3] = pr.matrix_from_euler(
+AVP_LEFT2MANO_LEFT = pt.invert_transform(MANO_LEFT2AVP_LEFT)
+
+# Transformation required for motion retargeting algorithm.
+# https://github.com/dexsuite/dex-retargeting/issues/13#issuecomment-2133886267
+OPT2MANO_RIGHT = np.eye(4)
+OPT2MANO_RIGHT[:3, :3] = pr.matrix_from_euler(
     [np.pi/2, 0, -np.pi/2], 0, 1, 2, extrinsic=True)
-opt2mano_left = np.eye(4)
-opt2mano_left[:3, :3] = pr.matrix_from_euler(
+OPT2MANO_LEFT = np.eye(4)
+OPT2MANO_LEFT[:3, :3] = pr.matrix_from_euler(
     [-np.pi/2, 0, np.pi/2], 0, 1, 2, extrinsic=True)
-xarm2opt = np.eye(4)
-xarm2opt[:3, :3] = pr.matrix_from_euler(
+
+# Embodiment specific transformation. Currently only for XArm.
+XARM2OPT = np.eye(4)
+XARM2OPT[:3, :3] = pr.matrix_from_euler(
     [np.pi, -np.pi/2, 0], 0, 1, 2, extrinsic=True)
-opt2xarm = pt.invert_transform(xarm2opt)
+OPT2XARM = pt.invert_transform(XARM2OPT)
 
 
 def get_avp_joint_names(side): return [
@@ -60,8 +66,7 @@ def get_avp_joint_names(side): return [
 
 
 def get_keypoint_3d(timestep, side="right"):
-    keypoint_3d = np.stack([timestep[joint_name][:3, 3]
-                           for joint_name in get_avp_joint_names(side)], axis=0)
+    keypoint_3d = np.stack([timestep[joint_name][:3, 3] for joint_name in get_avp_joint_names(side)], axis=0)
     return keypoint_3d
 
 
@@ -76,20 +81,20 @@ def retarget(retargeting, timestep, side="right"):
     wrist_rot = get_wrist_rotation(timestep, side)
 
     if side == "right":
-        mano2avp = mano_right2avp_right
-        opt2mano = opt2mano_right
+        mano2avp = MANO_RIGHT2AVP_RIGHT
+        opt2mano = OPT2MANO_RIGHT
     elif side == "left":
-        mano2avp = mano_left2avp_left
-        opt2mano = opt2mano_left
+        mano2avp = MANO_LEFT2AVP_LEFT
+        opt2mano = OPT2MANO_LEFT
 
     # Transform Wrist Pose #
     wrist_pose = np.eye(4)
     wrist_pose[:3, :3] = wrist_rot
     wrist_pose[:3, 3] = keypoint_3d[0, :]
 
-    # NOTE: XArm wrist pose in camera position.
-    world2cam = pt.invert_transform(timestep["extrinsic"])
-    pose = world2cam @ wrist_pose @ mano2avp @ opt2mano @ xarm2opt
+    world2cam = pt.invert_transform(timestep["camera"])
+    # NOTE: Adjustment to XArm orientation.
+    pose = world2cam @ wrist_pose @ mano2avp @ opt2mano @ XARM2OPT
     rot = pr.compact_axis_angle_from_matrix(pose[:3, :3])
     trans = pose[:3, 3]
     pose = np.concatenate([trans, rot], axis=0)  # cartesian + axis angle
@@ -138,8 +143,7 @@ def load_hdf5_to_dict(hdf5, index, keys_to_ignore=[]):
 def worker_init(robot_name: str = "leap"):
     global left_retargeting, right_retargeting
 
-    robot_dir = Path(__file__).absolute().parent / \
-        "dex-urdf" / "robots" / "hands"
+    robot_dir = Path(__file__).absolute().parent / "dex-urdf" / "robots" / "hands"
     RetargetingConfig.set_default_urdf_dir(str(robot_dir))
     left_config_path = get_default_config_path(
         RobotName[robot_name], RetargetingType.dexpilot, HandType.left)
@@ -203,6 +207,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--data_dirpath", type=str)
     parser.add_argument("--out_dirpath", type=str)
+    parser.add_argument("--num_workers", type=int, default=10)
     args = parser.parse_args()
 
     # data_dirpath = "/home/yjang43/workspace/playground/data/EgoDex"
@@ -211,7 +216,7 @@ if __name__ == "__main__":
     filepaths = glob.glob(str(Path(args.data_dirpath) / "**" / "*.hdf5"), recursive=True)
 
     # n_workers = mp.cpu_count()
-    n_workers = 10
+    n_workers = args.num_workers
 
     with mp.Pool(
         processes=n_workers,
