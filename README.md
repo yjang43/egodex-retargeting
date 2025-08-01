@@ -23,6 +23,15 @@ pip install uv
 uv pip install dex-retargeting h5py pytransform3d tqdm torch
 ```
 
+# Download EgoDex
+From [EgoDex paper A.3](https://arxiv.org/pdf/2505.11709)
+>The training set is further divided into 5 zip files for portability,
+each with a size of around 300 GB. The data is publicly available for download at the following URL: https://ml-site.cdn-apple.com/datasets/egodex/[filename]
+.zip, where [filename] is one of part1, part2, part3, part4, part5, test,
+extra (for example, https://ml-site.cdn-apple.com/datasets/egodex/test.
+zip). The 5 parts belong to the training set, whereas test.zip is the test set and extra.zip is
+the additional data. 
+
 # Run
 
 ```bash
@@ -34,7 +43,7 @@ Each output file contains retarged action sequence of an episode.
 The naminig of the file is in `{split}/{task_name}/{episode_id}.hdf5` format.
 
 The output file is structured this way,
-```python
+```bash
 HDF5 file:
 wrist_left_pose (Dataset) shape=(T, 6) dtype=float64
 wrist_right_pose (Dataset) shape=(T, 6) dtype=float64
