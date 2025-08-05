@@ -55,6 +55,11 @@ XARM2OPT[:3, :3] = pr.matrix_from_euler(
     [np.pi, -np.pi/2, 0], 0, 1, 2, extrinsic=True)
 OPT2XARM = pt.invert_transform(XARM2OPT)
 
+LEAP_JOINT_NAMES = [
+    "0", "1", "2", "3", "4", "5", "6", "7",
+    "8", "9", "10", "11", "12", "13", "14", "15"
+]
+
 
 def get_avp_joint_names(side): return [
     f"{side}Hand", f"{side}ThumbKnuckle", f"{side}ThumbIntermediateBase", f"{side}ThumbIntermediateTip", f"{side}ThumbTip",
@@ -115,7 +120,8 @@ def retarget(retargeting, timestep, side="right"):
     qpos = retargeting.retarget(ref_value)
 
     # NOTE: Convert back to leaphand joint order 0-15.
-    joint_order = [int(j) for j in retargeting.optimizer.robot.dof_joint_names]
+    opt_joint_names = retargeting.optimizer.robot.dof_joint_names
+    joint_order = [opt_joint_names.index(j) for j in LEAP_JOINT_NAMES]
     qpos = qpos[joint_order]
 
     return pose, qpos
@@ -213,7 +219,8 @@ if __name__ == "__main__":
     # data_dirpath = "/home/yjang43/workspace/playground/data/EgoDex"
     # out_dirpath  = "/home/yjang43/workspace/playground/data/EgoDexRetargeted"
 
-    filepaths = glob.glob(str(Path(args.data_dirpath) / "**" / "*.hdf5"), recursive=True)
+    # filepaths = glob.glob(str(Path(args.data_dirpath) / "**" / "*.hdf5"), recursive=True)
+    filepaths = ["/home/yjang43/workspace/egodex-retargeting/data/EgoDex/test/add_remove_lid/1.hdf5"]
 
     # n_workers = mp.cpu_count()
     n_workers = args.num_workers
