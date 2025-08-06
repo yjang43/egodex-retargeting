@@ -70,6 +70,6 @@ python visualize.py \
     --out_filepath PATH_TO_OUTPUT_VIDEO
 ```
 
-<video controls src="https://github.com/yjang43/egodex-retargeting/blob/main/asset/sample.mp4" title="asset/sample.mp4"></video>
 
-<video controls src="https://github.com/yjang43/egodex-retargeting/blob/main/asset/retargeted.mp4" title="asset/retargeted.mp4"></video>
+![sample](asset/sample.gif)
+![retargeted](asset/retargeted.gif)
