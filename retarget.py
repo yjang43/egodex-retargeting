@@ -37,7 +37,7 @@ MANO_RIGHT2AVP_RIGHT = np.eye(4)
 AVP_RIGHT2MANO_RIGHT = np.eye(4)
 MANO_LEFT2AVP_LEFT = np.eye(4)
 MANO_LEFT2AVP_LEFT[:3, :3] = pr.matrix_from_euler(
-    [np.pi, 0, 0], 0, 1, 2, extrinsic=True)
+    [0, np.pi, 0], 0, 1, 2, extrinsic=True)
 AVP_LEFT2MANO_LEFT = pt.invert_transform(MANO_LEFT2AVP_LEFT)
 
 # Transformation required for motion retargeting algorithm.
@@ -59,7 +59,46 @@ LEAP_JOINT_NAMES = [
     "0", "1", "2", "3", "4", "5", "6", "7",
     "8", "9", "10", "11", "12", "13", "14", "15"
 ]
+ALLEGRO_JOINT_NAMES = [
+    "joint_0.0", "joint_1.0", "joint_2.0", "joint_3.0",
+    "joint_4.0", "joint_5.0", "joint_6.0", "joint_7.0",
+    "joint_8.0", "joint_9.0", "joint_10.0", "joint_11.0",
+    "joint_12.0", "joint_13.0", "joint_14.0", "joint_15.0"
+]
+JOINT_NAMES = LEAP_JOINT_NAMES
 
+
+def estimate_frame_from_hand_points(keypoint_3d_array: np.ndarray) -> np.ndarray:
+    """
+    Compute the 3D coordinate frame (orientation only) from detected 3d key points
+    :param points: keypoint3 detected from MediaPipe detector. Order: [wrist, index, middle, pinky]
+    Compute the 3D coordinate frame (orientation only) from detected 3d key points
+    :param points: keypoint3 detected from MediaPipe detector. Order: [wrist, index, middle, pinky]
+    :return: the coordinate frame of wrist in MANO convention
+    """
+    assert keypoint_3d_array.shape == (21, 3)
+    points = keypoint_3d_array[[0, 5, 9], :]
+
+    # Compute vector from palm to the first joint of middle finger
+    x_vector = points[0] - points[2]
+
+    # Normal fitting with SVD
+    points = points - np.mean(points, axis=0, keepdims=True)
+    u, s, v = np.linalg.svd(points)
+
+    normal = v[2, :]
+
+    # Gram Schmidt Orthonormalize
+    x = x_vector - np.sum(x_vector * normal) * normal
+    x = x / np.linalg.norm(x)
+    z = np.cross(x, normal)
+
+    # We assume that the vector from pinky to index is similar the z axis in MANO convention
+    if np.sum(z * (points[1] - points[2])) < 0:
+        normal *= -1
+        z *= -1
+    frame = np.stack([x, normal, z], axis=1)
+    return frame
 
 def get_avp_joint_names(side): return [
     f"{side}Hand", f"{side}ThumbKnuckle", f"{side}ThumbIntermediateBase", f"{side}ThumbIntermediateTip", f"{side}ThumbTip",
@@ -121,7 +160,7 @@ def retarget(retargeting, timestep, side="right"):
 
     # NOTE: Convert back to leaphand joint order 0-15.
     opt_joint_names = retargeting.optimizer.robot.dof_joint_names
-    joint_order = [opt_joint_names.index(j) for j in LEAP_JOINT_NAMES]
+    joint_order = [opt_joint_names.index(j) for j in JOINT_NAMES]
     qpos = qpos[joint_order]
 
     return pose, qpos
@@ -214,13 +253,15 @@ if __name__ == "__main__":
     parser.add_argument("--data_dirpath", type=str)
     parser.add_argument("--out_dirpath", type=str)
     parser.add_argument("--num_workers", type=int, default=10)
+    parser.add_argument("--robot_name", type=str, default="leap")
     args = parser.parse_args()
+
+    assert args.robot_name == "leap", "Currently, only LEAP Hand is supported."
 
     # data_dirpath = "/home/yjang43/workspace/playground/data/EgoDex"
     # out_dirpath  = "/home/yjang43/workspace/playground/data/EgoDexRetargeted"
 
-    # filepaths = glob.glob(str(Path(args.data_dirpath) / "**" / "*.hdf5"), recursive=True)
-    filepaths = ["/home/yjang43/workspace/egodex-retargeting/data/EgoDex/test/add_remove_lid/1.hdf5"]
+    filepaths = glob.glob(str(Path(args.data_dirpath) / "**" / "*.hdf5"), recursive=True)
 
     # n_workers = mp.cpu_count()
     n_workers = args.num_workers
@@ -228,7 +269,7 @@ if __name__ == "__main__":
     with mp.Pool(
         processes=n_workers,
         initializer=worker_init,
-        initargs=("leap",)
+        initargs=(args.robot_name,)
     ) as pool:
 
         job = partial(
