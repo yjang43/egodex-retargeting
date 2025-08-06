@@ -35,7 +35,7 @@ the additional data.
 # Run
 
 ```bash
-python retarget.py --data_dirpath PATH_TO_EGODEX_DATA_DIR --out_dirpath PATH_TO_OUTPUT_DIR
+python retarget.py --data_dirpath PATH_TO_EGO_DEX_DATA_DIR --out_dirpath PATH_TO_OUTPUT_DIR
 ```
 
 # Action Space
@@ -53,3 +53,23 @@ fingers_right_qpos (Dataset) shape=(T, 16) dtype=float64
 
 * wrist_pose: "6-DoF cartesian + axis-angle in camera frame, EE aligned with xArm"
 * finger_joint_angle: "16-DoF retargeted with DexPilot; joints 0-15."
+
+
+# Visualize
+To check the quality of the retargeted result, one can visualize with Sapien simulator.
+To visualize, it is required to install sapien simulator.
+Check out [sapien installation guide](https://sapien-sim.github.io/docs/user_guide/getting_started/installation.html).
+
+```bash
+pip install sapien
+
+python visualize.py \
+    --filepath PATH_TO_FILE_TO_VISUALIZE    # test/add_remove_lid/0.hdf5 \
+    --data_dirpath PATH_TO_EGO_DEX_DATA_DIR \
+    --retargeting_dirpath PATH_TO_RETARGETING_DIR \
+    --out_filepath PATH_TO_OUTPUT_VIDEO
+```
+
+<video src="asset/sample.mp4" controls autoplay loop muted playsinline width="640"></video>
+
+<video src="asset/retargeted.mp4" controls autoplay loop muted playsinline width="640"></video>
