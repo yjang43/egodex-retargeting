@@ -54,3 +54,56 @@ JOINT_NAMES = LEAP_JOINT_NAMES
 FHD = (1920, 1080)
 FPS = 30
 TIMESTEP = 1.0 / FPS
+
+# LeRobot
+LEAP_FEATURES = {
+    "observation.image": {
+        "dtype": "video",
+        "shape": (360, 640, 3),
+        "names": ["height", "width", "channels"],
+    },
+    "observation.state": {
+        "dtype": "float32",
+        "shape": (46,),
+        "names": {
+            "axes": [
+                "left_x", "left_y", "left_z",
+                "left_qw", "left_qx", "left_qy", "left_qz",
+                "left_j0", "left_j1", "left_j2", "left_j3",
+                "left_j4", "left_j5", "left_j6", "left_j7",
+                "left_j8", "left_j9", "left_j10", "left_j11",
+                "left_j12", "left_j13", "left_j14", "left_j15",
+                "right_x", "right_y", "right_z",
+                "right_qw", "right_qx", "right_qy", "right_qz",
+                "right_j0", "right_j1", "right_j2", "right_j3",
+                "right_j4", "right_j5", "right_j6", "right_j7",
+                "right_j8", "right_j9", "right_j10", "right_j11",
+                "right_j12", "right_j13", "right_j14", "right_j15",
+            ]
+        }
+    },
+    "action": {
+        "dtype": "float32",
+        "shape": (46,),
+        "names": {
+            "axes": [
+                "left_x", "left_y", "left_z",
+                "left_qw", "left_qx", "left_qy", "left_qz",
+                "left_j0", "left_j1", "left_j2", "left_j3",
+                "left_j4", "left_j5", "left_j6", "left_j7",
+                "left_j8", "left_j9", "left_j10", "left_j11",
+                "left_j12", "left_j13", "left_j14", "left_j15",
+                "right_x", "right_y", "right_z",
+                "right_qw", "right_qx", "right_qy", "right_qz",
+                "right_j0", "right_j1", "right_j2", "right_j3",
+                "right_j4", "right_j5", "right_j6", "right_j7",
+                "right_j8", "right_j9", "right_j10", "right_j11",
+                "right_j12", "right_j13", "right_j14", "right_j15",
+            ]
+        }
+    }
+}
+
+EGODEX_FEATURES = {
+    "leap": LEAP_FEATURES
+}
